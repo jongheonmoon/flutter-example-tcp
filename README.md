@@ -1,6 +1,6 @@
-# test_socket
+# tcptest
 
-A new Flutter project.
+A new Flutter project TCP test.
 
 ## Getting Started
 
