@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
+// Listener interface
 class TCPListener {
   final Function(String) _success;
   final Function(String) _fail;
@@ -20,12 +21,12 @@ class TCPListener {
 }
 
 class TCPManager {
-  static int port = 1004;
-  static String serverIp = "192.168.0.110";
+  static int port = 1004; // Server Port
+  static String serverIp = "192.168.0.110"; // Server IP
   static Socket? clientSocket;
-  static bool isConnect = false;
-  static HashMap<int, TCPListener> hashMap = HashMap();
-  static int getCount = 0;
+  static bool isConnect = false; // Server Connect bool
+  static HashMap<int, TCPListener> hashMap = HashMap(); //interface HashMap
+  static int callSeq = 0; // callSeq (unique key)
 
   static Future<bool> connectToServer() async {
     return Socket.connect(serverIp, port, timeout: const Duration(seconds: 5)).then((socket) {
@@ -40,32 +41,33 @@ class TCPManager {
       return false;
     });
   }
-  // 0 은 임시 키값 나중에 키를 바꿔야함
+
+  // callSeq 은 임시 키값 나중에 키를 바꿔야함
   static _responsePacket() async {
     clientSocket?.listen(
       (onData) {
         print("responsePacket: ${String.fromCharCodes(onData).trim()}");
-        hashMap[0]?.success(String.fromCharCodes(onData).trim());
-        hashMap.removeWhere((key, value) => key == 0);
+        hashMap[callSeq]?.success(String.fromCharCodes(onData).trim());
+        hashMap.removeWhere((key, value) => key == callSeq);
       },
       onDone: onDone,
       onError: onError,
     );
   }
 
-  // 0 은 임시 키값 나중에 키를 바꿔야함
+  // callSeq 은 임시 키값 나중에 키를 바꿔야함
   static Future<bool> sendPackets(String message, TCPListener tcpListener) async {
     try {
       if (isConnect) {
         clientSocket?.write("$message\n");
         print("sendMessage: $message");
-        hashMap.update(0, (value) => tcpListener, ifAbsent: () => tcpListener);
+        hashMap.update(callSeq, (value) => tcpListener, ifAbsent: () => tcpListener);
         return true;
       } else {
         if (await connectToServer()) {
           clientSocket?.write("$message\n");
           print("sendMessage: $message");
-          hashMap.update(0, (value) => tcpListener, ifAbsent: () => tcpListener);
+          hashMap.update(callSeq, (value) => tcpListener, ifAbsent: () => tcpListener);
           return true;
         } else {
           return false;
@@ -78,13 +80,15 @@ class TCPManager {
 
   static void onDone() {
     print("onDone");
-    hashMap[0]?.fail("onDone");
+    hashMap[callSeq]?.fail("onDone");
+    hashMap.removeWhere((key, value) => key == callSeq);
     disconnectFromServer();
   }
 
   static void onError(e) {
     print("onError: $e");
-    hashMap[0]?.fail("onError: $e");
+    hashMap[callSeq]?.fail("onError: $e");
+    hashMap.removeWhere((key, value) => key == callSeq);
     disconnectFromServer();
   }
 
