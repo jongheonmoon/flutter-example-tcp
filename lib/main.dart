@@ -1,6 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:tcptest/network/TCPManager.dart';
 
 void main() {
   runApp(const MyApp());
@@ -42,13 +41,9 @@ class SocketClientState extends State<SocketClient> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
   String localIP = "lacalIP";
-  int port = 1004;
-  String serverIp = "192.168.0.110";
   List<MessageItem> items = <MessageItem>[];
 
   TextEditingController msgCon = TextEditingController();
-
-  Socket? clientSocket;
 
   @override
   void initState() {
@@ -58,7 +53,7 @@ class SocketClientState extends State<SocketClient> {
 
   @override
   void dispose() {
-    disconnectFromServer();
+    TCPManager.disconnectFromServer();
     super.dispose();
   }
 
@@ -76,8 +71,6 @@ class SocketClientState extends State<SocketClient> {
         appBar: AppBar(title: const Text("Socket Client")),
         body: Column(
           children: <Widget>[
-            ipInfoArea(),
-            connectArea(),
             messageListArea(),
             submitArea(),
           ],
@@ -90,22 +83,6 @@ class SocketClientState extends State<SocketClient> {
         dense: true,
         leading: const Text("IP"),
         title: Text(localIP),
-      ),
-    );
-  }
-
-  Widget connectArea() {
-    return Card(
-      child: ListTile(
-        dense: true,
-        leading: const Text("Server IP"),
-        title: Text(serverIp),
-        trailing: ElevatedButton(
-          style:
-              ElevatedButton.styleFrom(primary: (clientSocket != null) ? Colors.blue : Colors.red),
-          child: Text((clientSocket != null) ? "Disconnect" : "Connect"),
-          onPressed: (clientSocket != null) ? disconnectFromServer : connectToServer,
-        ),
       ),
     );
   }
@@ -154,69 +131,13 @@ class SocketClientState extends State<SocketClient> {
           icon: const Icon(Icons.send),
           color: Colors.blue,
           disabledColor: Colors.grey,
-          onPressed: (clientSocket != null) ? submitMessage : null,
+          onPressed: submitMessage,
         ),
       ),
     );
   }
 
-  void connectToServer() async {
-    Socket.connect(serverIp, port, timeout: const Duration(seconds: 5)).then((socket) {
-      setState(() {
-        clientSocket = socket;
-      });
-
-      showSnackBarWithKey("Connected to ${socket.remoteAddress.address}:${socket.remotePort}");
-      socket.listen(
-        (onData) {
-          // ignore: avoid_print
-          print(String.fromCharCodes(onData).trim());
-          setState(() {
-            items.insert(
-                0,
-                MessageItem(
-                    clientSocket?.remoteAddress.address, String.fromCharCodes(onData).trim()));
-          });
-        },
-        onDone: onDone,
-        onError: onError,
-      );
-    }).catchError((e) {
-      showSnackBarWithKey(e.toString());
-    });
-  }
-
-  void onDone() {
-    // ignore: avoid_print
-    print("onDone");
-    showSnackBarWithKey("Connection has terminated.");
-    disconnectFromServer();
-  }
-
-  void onError(e) {
-    // ignore: avoid_print
-    print("onError: $e");
-    showSnackBarWithKey(e.toString());
-    disconnectFromServer();
-  }
-
-  void disconnectFromServer() {
-    // ignore: avoid_print
-    print("disconnectFromServer");
-
-    clientSocket?.close();
-    setState(() {
-      clientSocket = null;
-    });
-  }
-
-  void sendMessage(String message) {
-    // ignore: avoid_print
-    print("sendMessage: $message\n");
-    clientSocket?.write("$message\n");
-  }
-
-  void submitMessage() {
+  void submitMessage() async {
     if (msgCon.text.isEmpty) {
       showSnackBarWithKey("message isEmpty");
       return;
@@ -224,7 +145,15 @@ class SocketClientState extends State<SocketClient> {
     setState(() {
       items.insert(0, MessageItem(localIP, msgCon.text));
     });
-    sendMessage(msgCon.text);
+    if (await TCPManager.sendPackets(
+        msgCon.text,
+        TCPListener((success) {
+          setState(() {
+            items.insert(0, MessageItem("test", success));
+          });
+        }, (fail) {
+          showSnackBarWithKey(fail);
+        }))) {}
     msgCon.clear();
   }
 
