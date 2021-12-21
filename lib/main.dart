@@ -142,9 +142,7 @@ class SocketClientState extends State<SocketClient> {
       showSnackBarWithKey("message isEmpty");
       return;
     }
-    setState(() {
-      items.insert(0, MessageItem(localIP, msgCon.text));
-    });
+
     if (await TCPManager.sendPackets(
         msgCon.text,
         TCPListener((success) {
@@ -153,8 +151,14 @@ class SocketClientState extends State<SocketClient> {
           });
         }, (fail) {
           showSnackBarWithKey(fail);
-        }))) {}
-    msgCon.clear();
+        }))) {
+      setState(() {
+        items.insert(0, MessageItem(localIP, msgCon.text));
+      });
+      msgCon.clear();
+    } else {
+      showSnackBarWithKey("전송 실패");
+    }
   }
 
   showSnackBarWithKey(String message) {

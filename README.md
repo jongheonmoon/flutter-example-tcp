@@ -1,6 +1,6 @@
 # tcptest
 
-A new Flutter project TCP test.
+A new Flutter project TCP client example.
 
 ## Getting Started
 
